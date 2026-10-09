@@ -1,0 +1,1 @@
+# tcg-card-logger-bridge
