@@ -6,7 +6,7 @@
   <meta name="referrer" content="no-referrer">
   <meta name="color-scheme" content="dark">
   <title>TCG Card Logger</title>
-  <script src="https://telegram.org/js/telegram-web-app.js?64"></script>
+  <script src="https://telegram.org/js/telegram-web-app.js?64" defer></script>
   <style>
     :root { color-scheme: dark; font: 16px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0d1117; color: #e9eff7; }
     * { box-sizing: border-box; }
@@ -23,7 +23,12 @@
     (function () {
       'use strict';
       var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzUF1lmp7OhjWgMbK0YOqAip1RgCQdNHdFMswpgPKXRvUCOqN4d97lPEy3jaoBmySLH/exec';
-      var telegram = window.Telegram && window.Telegram.WebApp;
+      // Start fetching the Apps Script iframe while the deferred Telegram SDK
+      // is still loading. Authentication waits for both sides; no signed data
+      // is exposed before Telegram supplies it and the iframe proves origin.
+      var telegram = null;
+      var pendingAuth = null;
+      var didSendAuth = false;
       var token = new URLSearchParams(window.location.search).get('session');
       var message = document.getElementById('message');
       var iframe = document.getElementById('gas-frame');
@@ -40,13 +45,13 @@
           origin === 'https://script.google.com';
       }
 
-      if (!/^[A-Za-z0-9_-]{1,256}$/.test(token || '') || !telegram || !telegram.initData) {
+      // The token only locates an existing pending session; it never
+      // authorizes a purchase. The server still validates signed Telegram
+      // initData, owner and expiry before returning any card details.
+      if (!/^[A-Za-z0-9_-]{1,256}$/.test(token || '')) {
         fail();
         return;
       }
-      telegram.ready();
-      telegram.expand();
-      if (telegram.MainButton) telegram.MainButton.hide();
 
       var bytes = new Uint8Array(32);
       crypto.getRandomValues(bytes);
@@ -54,20 +59,50 @@
         return ('0' + byte.toString(16)).slice(-2);
       }).join('');
 
+      function deliverAuth() {
+        if (didSendAuth || !telegram || !telegram.initData || !pendingAuth) return;
+        didSendAuth = true;
+        pendingAuth.source.postMessage({
+          type: 'TCG_BRIDGE_AUTH', nonce: nonce, initData: telegram.initData
+        }, pendingAuth.origin);
+        pendingAuth = null;
+      }
+
       window.addEventListener('message', function (event) {
-        if (!event || !isGoogleFrameOrigin(event.origin) || !event.data || event.data.nonce !== nonce) return;
+        if (!event || event.source !== iframe.contentWindow ||
+            !isGoogleFrameOrigin(event.origin) || !event.data ||
+            event.data.nonce !== nonce) return;
         if (event.data.type === 'TCG_BRIDGE_AUTH_REQUEST') {
-          if (event.source && typeof event.source.postMessage === 'function') {
-            event.source.postMessage({ type: 'TCG_BRIDGE_AUTH', nonce: nonce, initData: telegram.initData }, event.origin);
+          if (!didSendAuth) {
+            pendingAuth = { source: event.source, origin: event.origin };
+            deliverAuth();
           }
-        } else if (event.data.type === 'TCG_BRIDGE_CLOSE') {
+        } else if (event.data.type === 'TCG_BRIDGE_CLOSE' && telegram) {
           telegram.close();
         }
       });
 
+      // This is deliberately before DOMContentLoaded: the iframe network
+      // request and the deferred Telegram SDK now run in parallel.
       iframe.src = WEB_APP_URL + '?session=' + encodeURIComponent(token) + '&bridgeNonce=' + nonce;
       iframe.style.display = 'block';
       message.style.display = 'none';
+
+      // Deferred scripts finish before DOMContentLoaded. The iframe may
+      // already be waiting for signed initData, which is delivered only now.
+      window.addEventListener('DOMContentLoaded', function () {
+        telegram = window.Telegram && window.Telegram.WebApp;
+        if (!telegram || !telegram.initData) {
+          iframe.style.display = 'none';
+          message.style.display = 'block';
+          fail();
+          return;
+        }
+        telegram.ready();
+        telegram.expand();
+        if (telegram.MainButton) telegram.MainButton.hide();
+        deliverAuth();
+      });
     })();
   </script>
 </body>
