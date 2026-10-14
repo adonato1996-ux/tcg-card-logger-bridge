@@ -1,0 +1,20 @@
+name: Verify isolated P1 bridge performance patch
+
+on:
+  push:
+    branches: ['feature/p1-miniapp-loading-20261014']
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Bridge security, integration and startup tests
+        run: node --test tests/*.test.js
