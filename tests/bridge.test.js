@@ -94,3 +94,15 @@ test('app iframe can authenticate from trusted googleusercontent host', () => {
   request(app, 'https://a-script.googleusercontent.com');
   assert.equal(app.outgoing.length, 1);
 });
+
+test('P1 bridge shows loading content before Telegram SDK and warms GAS connection', () => {
+  const head = html.indexOf('<head>');
+  const body = html.indexOf('<body>');
+  const status = html.indexOf('id="message"');
+  const telegramSdk = html.indexOf('src="https://telegram.org/js/telegram-web-app.js?64"');
+  const bridgeCode = html.indexOf('<script id="bridge-code">');
+  assert.ok(head >= 0 && body > head && status > body &&
+    telegramSdk > status && bridgeCode > telegramSdk);
+  assert.match(html, /rel="preconnect" href="https:\/\/script\.google\.com"/);
+  assert.match(html, /rel="preconnect" href="https:\/\/telegram\.org"/);
+});
