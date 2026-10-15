@@ -11,7 +11,8 @@ assert.ok(script, 'bridge inline script exists');
 function launch(options = {}) {
   const handlers = {};
   const outgoing = [];
-  const frame = { style: { display: 'none' }, src: '' };
+  const frame = { style: { display: 'none' }, src: '', onload: null,
+    addEventListener(type, callback) { if (type === 'load') this.onload = callback; } };
   const message = { style: {}, textContent: '', classList: { add: () => {} } };
   const state = { ready: 0, expanded: 0, hidden: 0, closed: 0 };
   const telegram = options.initData === null ? null : {
@@ -105,4 +106,15 @@ test('P1 bridge shows loading content before Telegram SDK and warms GAS connecti
     telegramSdk > status && bridgeCode > telegramSdk);
   assert.match(html, /rel="preconnect" href="https:\/\/script\.google\.com"/);
   assert.match(html, /rel="preconnect" href="https:\/\/telegram\.org"/);
+});
+
+test('the GAS iframe only replaces the loading message after the load event', () => {
+  const app = launch();
+  assert.equal(app.frame.style.display, 'none');
+  assert.notEqual(app.message.style.display, 'none');
+  assert.match(app.message.textContent, /Caricamento della scheda/);
+  assert.equal(typeof app.frame.onload, 'function');
+  app.frame.onload();
+  assert.equal(app.frame.style.display, 'block');
+  assert.equal(app.message.style.display, 'none');
 });
