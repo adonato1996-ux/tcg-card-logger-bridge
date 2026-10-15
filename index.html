@@ -6,7 +6,8 @@
   <meta name="referrer" content="no-referrer">
   <meta name="color-scheme" content="dark">
   <title>TCG Card Logger</title>
-  <script src="https://telegram.org/js/telegram-web-app.js?64"></script>
+  <link rel="preconnect" href="https://telegram.org" crossorigin>
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
   <style>
     :root { color-scheme: dark; font: 16px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0d1117; color: #e9eff7; }
     * { box-sizing: border-box; }
@@ -19,6 +20,7 @@
 <body>
   <div id="message" role="status" aria-live="polite">Connessione sicura a Telegram…</div>
   <iframe id="gas-frame" title="TCG Card Logger — dati acquisto" referrerpolicy="no-referrer" allow="clipboard-write"></iframe>
+  <script src="https://telegram.org/js/telegram-web-app.js?64"></script>
   <script id="bridge-code">
     (function () {
       'use strict';
@@ -65,9 +67,14 @@
         }
       });
 
+      // Keep a visible loading state until the GAS iframe actually loads.
+      // This changes presentation only; nonce-bound authentication is unchanged.
+      message.textContent = 'Caricamento della scheda di registrazione…';
+      iframe.addEventListener('load', function () {
+        iframe.style.display = 'block';
+        message.style.display = 'none';
+      });
       iframe.src = WEB_APP_URL + '?session=' + encodeURIComponent(token) + '&bridgeNonce=' + nonce;
-      iframe.style.display = 'block';
-      message.style.display = 'none';
     })();
   </script>
 </body>
