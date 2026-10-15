@@ -67,9 +67,14 @@
         }
       });
 
+      // Keep a visible loading state until the GAS iframe actually loads.
+      // This changes presentation only; nonce-bound authentication is unchanged.
+      message.textContent = 'Caricamento della scheda di registrazione…';
+      iframe.addEventListener('load', function () {
+        iframe.style.display = 'block';
+        message.style.display = 'none';
+      });
       iframe.src = WEB_APP_URL + '?session=' + encodeURIComponent(token) + '&bridgeNonce=' + nonce;
-      iframe.style.display = 'block';
-      message.style.display = 'none';
     })();
   </script>
 </body>
