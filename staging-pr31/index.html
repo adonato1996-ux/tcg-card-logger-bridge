@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta name="color-scheme" content="dark">
+  <title>TCG Card Logger — STAGING PR31</title>
+  <link rel="preconnect" href="https://telegram.org" crossorigin>
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
+  <style>
+    :root { color-scheme: dark; font: 16px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0d1117; color: #e9eff7; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+    #gas-frame { display: none; width: 100%; height: 100%; border: 0; background: #0d1117; }
+    #message { padding: 28px 20px; line-height: 1.5; color: #c1cad5; }
+    #message.error { color: #ffb4b4; }
+  </style>
+</head>
+<body>
+  <div id="message" role="status" aria-live="polite">Connessione sicura a Telegram…</div>
+  <iframe id="gas-frame" title="TCG Card Logger — STAGING PR31 sola lettura" referrerpolicy="no-referrer" allow="clipboard-write"></iframe>
+  <script src="https://telegram.org/js/telegram-web-app.js?64"></script>
+  <script id="bridge-code">
+    (function () {
+      'use strict';
+      var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxTjCspowAVipe9RY1RUrIoVJeFW9GLPPFuLIpzMgyc8Sz3jMMT5rBNi8Zuf0RlBt3c/exec';
+      var telegram = window.Telegram && window.Telegram.WebApp;
+      var parameters = new URLSearchParams(window.location.search);
+      var requestedMode = parameters.get('mode');
+      var collectionMode = requestedMode === 'collection';
+      var message = document.getElementById('message');
+      var iframe = document.getElementById('gas-frame');
+
+      function fail() {
+        message.textContent = 'STAGING PR31: apri la collezione dal pulsante del bot Telegram. Solo lettura, dati sintetici.';
+        message.classList.add('error');
+      }
+
+      // Only the Apps Script iframe can request initialization data.
+      // The nonce additionally binds each request to this one launch.
+      function isGoogleFrameOrigin(origin) {
+        return /^https:\/\/(?:(?:[a-z0-9-]+\.)?script|[a-z0-9-]+-script)\.googleusercontent\.com$/i.test(origin) ||
+          origin === 'https://script.google.com';
+      }
+
+      if (!collectionMode || !telegram || !telegram.initData) {
+        fail();
+        return;
+      }
+      telegram.ready();
+      telegram.expand();
+      if (telegram.MainButton) telegram.MainButton.hide();
+
+      var bytes = new Uint8Array(32);
+      crypto.getRandomValues(bytes);
+      var nonce = Array.prototype.map.call(bytes, function (byte) {
+        return ('0' + byte.toString(16)).slice(-2);
+      }).join('');
+
+      window.addEventListener('message', function (event) {
+        if (!event || !isGoogleFrameOrigin(event.origin) || !event.data || event.data.nonce !== nonce) return;
+        if (event.data.type === 'TCG_BRIDGE_AUTH_REQUEST') {
+          if (event.source && typeof event.source.postMessage === 'function') {
+            event.source.postMessage({ type: 'TCG_BRIDGE_AUTH', nonce: nonce, initData: telegram.initData }, event.origin);
+          }
+        } else if (event.data.type === 'TCG_BRIDGE_CLOSE') {
+          telegram.close();
+        }
+      });
+
+      // Keep a visible loading state until the GAS iframe actually loads.
+      // This changes presentation only; nonce-bound authentication is unchanged.
+      message.textContent = 'STAGING PR31 · Caricamento collezione in sola lettura…';
+      iframe.addEventListener('load', function () {
+        iframe.style.display = 'block';
+        message.style.display = 'none';
+      });
+      iframe.src = WEB_APP_URL + '?mode=collection&bridgeNonce=' + nonce;
+    })();
+  </script>
+</body>
+</html>
+
