@@ -19,12 +19,12 @@
 </head>
 <body>
   <div id="message" role="status" aria-live="polite">Connessione sicura a Telegram…</div>
-  <iframe id="gas-frame" title="TCG Card Logger — STAGING PR31 sola lettura" referrerpolicy="no-referrer" allow="clipboard-write"></iframe>
+  <iframe id="gas-frame" title="TCG Card Logger — STAGING PR31 Vendi/Elimina" referrerpolicy="no-referrer" allow="clipboard-write"></iframe>
   <script src="https://telegram.org/js/telegram-web-app.js?64"></script>
   <script id="bridge-code">
     (function () {
       'use strict';
-      var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxTjCspowAVipe9RY1RUrIoVJeFW9GLPPFuLIpzMgyc8Sz3jMMT5rBNi8Zuf0RlBt3c/exec';
+      var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwDz1AjEBpanoRdMKbb6wsHYsuM0Qj_nnGnrk4mItYds0cAO4bgbDvdNJ70usR0J57G/exec';
       var telegram = window.Telegram && window.Telegram.WebApp;
       var parameters = new URLSearchParams(window.location.search);
       var requestedMode = parameters.get('mode');
@@ -33,7 +33,7 @@
       var iframe = document.getElementById('gas-frame');
 
       function fail() {
-        message.textContent = 'STAGING PR31: apri la collezione dal pulsante del bot Telegram. Solo lettura, dati sintetici.';
+        message.textContent = 'STAGING PR31: apri la collezione dal pulsante del bot Telegram. Dati sintetici, Vendi/Elimina di prova.';
         message.classList.add('error');
       }
 
@@ -71,7 +71,7 @@
 
       // Keep a visible loading state until the GAS iframe actually loads.
       // This changes presentation only; nonce-bound authentication is unchanged.
-      message.textContent = 'STAGING PR31 · Caricamento collezione in sola lettura…';
+      message.textContent = 'STAGING PR31 · Caricamento collezione sintetica…';
       iframe.addEventListener('load', function () {
         iframe.style.display = 'block';
         message.style.display = 'none';
