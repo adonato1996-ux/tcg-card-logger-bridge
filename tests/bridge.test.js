@@ -118,3 +118,66 @@ test('the GAS iframe only replaces the loading message after the load event', ()
   assert.equal(app.frame.style.display, 'block');
   assert.equal(app.message.style.display, 'none');
 });
+
+test('collection opens without a purchase session and retains the fixed LIVE destination', () => {
+  const app = launch({ search: '?mode=collection' });
+  assert.match(app.frame.src, /\/exec\?mode=collection&bridgeNonce=/);
+  const target = new URL(app.frame.src);
+  assert.equal(target.origin + target.pathname,
+    'https://script.google.com/macros/s/AKfycbzUF1lmp7OhjWgMbK0YOqAip1RgCQdNHdFMswpgPKXRvUCOqN4d97lPEy3jaoBmySLH/exec');
+  assert.equal(target.searchParams.get('mode'), 'collection');
+  assert.equal(target.searchParams.has('session'), false);
+  assert.match(target.searchParams.get('bridgeNonce'), /^[a-f0-9]{64}$/);
+  assert.match(app.message.textContent, /Caricamento della collezione/);
+  assert.equal(app.state.ready, 1);
+});
+
+test('collection ignores purchase tokens and client identity, credentials and destinations', () => {
+  const app = launch({ search: '?mode=collection&session=bad%20token&telegramUserId=999&spreadsheetId=other&initData=forged&token=secret&WEB_APP_URL=https://attacker.invalid&bridgeNonce=client' });
+  assert.match(app.frame.src, /\/exec\?mode=collection&bridgeNonce=/);
+  const target = new URL(app.frame.src);
+  assert.deepEqual([...target.searchParams.keys()], ['mode', 'bridgeNonce']);
+  assert.match(target.searchParams.get('bridgeNonce'), /^[a-f0-9]{64}$/);
+  assert.doesNotMatch(app.frame.src, /attacker|forged|secret|client|999|other/);
+  request(app);
+  assert.equal(app.outgoing[0].data.initData, 'valid-test-signed-initdata');
+});
+
+test('collection still requires Telegram initData before loading or posting authentication', () => {
+  for (const initData of ['', null]) {
+    const app = launch({ search: '?mode=collection', initData });
+    assert.equal(app.frame.src, '');
+    assert.equal(app.state.ready, 0);
+    assert.equal(app.handlers.message, undefined);
+    assert.deepEqual(app.outgoing, []);
+  }
+});
+
+test('unsupported modes cannot silently become purchase or collection', () => {
+  for (const mode of ['admin', 'Collection', 'collection-extra']) {
+    const app = launch({ search: '?mode=' + mode + '&session=opaque-token' });
+    assert.equal(app.frame.src, '');
+    assert.match(app.message.textContent, /Sessione non disponibile/);
+  }
+});
+
+test('explicit purchase mode preserves the original purchase URL and validation', () => {
+  const old = launch();
+  const explicit = launch({ search: '?mode=purchase&session=opaque-token' });
+  assert.equal(explicit.frame.src, old.frame.src);
+  assert.equal(launch({ search: '?mode=purchase' }).frame.src, '');
+  assert.equal(launch({ search: '?session=bad%20token' }).frame.src, '');
+});
+
+test('collection authentication keeps origin and nonce checks and never puts initData in URLs', () => {
+  const app = launch({ search: '?mode=collection' });
+  assert.match(app.frame.src, /\/exec\?mode=collection&bridgeNonce=/);
+  assert.doesNotMatch(app.frame.src, /initData|valid-test/);
+  for (const origin of ['https://attacker.invalid', 'https://script.google.com.attacker.invalid', 'http://script.google.com']) request(app, origin);
+  request(app, 'https://script.google.com', { nonce: 'wrong' });
+  assert.deepEqual(app.outgoing, []);
+  request(app, 'https://a-script.googleusercontent.com');
+  assert.equal(app.outgoing.length, 1);
+  assert.equal(app.outgoing[0].target, 'https://a-script.googleusercontent.com');
+  assert.equal(app.outgoing[0].data.initData, 'valid-test-signed-initdata');
+});
