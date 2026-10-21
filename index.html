@@ -26,7 +26,11 @@
       'use strict';
       var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzUF1lmp7OhjWgMbK0YOqAip1RgCQdNHdFMswpgPKXRvUCOqN4d97lPEy3jaoBmySLH/exec';
       var telegram = window.Telegram && window.Telegram.WebApp;
-      var token = new URLSearchParams(window.location.search).get('session');
+      var parameters = new URLSearchParams(window.location.search);
+      var token = parameters.get('session');
+      var requestedMode = parameters.get('mode');
+      var collectionMode = requestedMode === 'collection';
+      var purchaseMode = !requestedMode || requestedMode === 'purchase';
       var message = document.getElementById('message');
       var iframe = document.getElementById('gas-frame');
 
@@ -42,7 +46,8 @@
           origin === 'https://script.google.com';
       }
 
-      if (!/^[A-Za-z0-9_-]{1,256}$/.test(token || '') || !telegram || !telegram.initData) {
+      if ((!collectionMode && (!purchaseMode || !/^[A-Za-z0-9_-]{1,256}$/.test(token || ''))) ||
+          !telegram || !telegram.initData) {
         fail();
         return;
       }
@@ -69,12 +74,14 @@
 
       // Keep a visible loading state until the GAS iframe actually loads.
       // This changes presentation only; nonce-bound authentication is unchanged.
-      message.textContent = 'Caricamento della scheda di registrazione…';
+      message.textContent = collectionMode ? 'Caricamento della collezione…' : 'Caricamento della scheda di registrazione…';
       iframe.addEventListener('load', function () {
         iframe.style.display = 'block';
         message.style.display = 'none';
       });
-      iframe.src = WEB_APP_URL + '?session=' + encodeURIComponent(token) + '&bridgeNonce=' + nonce;
+      iframe.src = WEB_APP_URL + (collectionMode
+        ? '?mode=collection&bridgeNonce=' + nonce
+        : '?session=' + encodeURIComponent(token) + '&bridgeNonce=' + nonce);
     })();
   </script>
 </body>
