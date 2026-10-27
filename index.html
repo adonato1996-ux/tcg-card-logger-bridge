@@ -30,6 +30,7 @@
       var token = parameters.get('session');
       var requestedMode = parameters.get('mode');
       var collectionMode = requestedMode === 'collection';
+      var searchMode = requestedMode === 'search';
       var purchaseMode = !requestedMode || requestedMode === 'purchase';
       var message = document.getElementById('message');
       var iframe = document.getElementById('gas-frame');
@@ -46,7 +47,7 @@
           origin === 'https://script.google.com';
       }
 
-      if ((!collectionMode && (!purchaseMode || !/^[A-Za-z0-9_-]{1,256}$/.test(token || ''))) ||
+      if ((!collectionMode && !searchMode && (!purchaseMode || !/^[A-Za-z0-9_-]{1,256}$/.test(token || ''))) ||
           !telegram || !telegram.initData) {
         fail();
         return;
@@ -74,13 +75,15 @@
 
       // Keep a visible loading state until the GAS iframe actually loads.
       // This changes presentation only; nonce-bound authentication is unchanged.
-      message.textContent = collectionMode ? 'Caricamento della collezione…' : 'Caricamento della scheda di registrazione…';
+      message.textContent = collectionMode ? 'Caricamento della collezione…' :
+        (searchMode ? 'Caricamento del catalogo personale…' : 'Caricamento della scheda di registrazione…');
       iframe.addEventListener('load', function () {
         iframe.style.display = 'block';
         message.style.display = 'none';
       });
       iframe.src = WEB_APP_URL + (collectionMode
         ? '?mode=collection&bridgeNonce=' + nonce
+        : searchMode ? '?mode=search&bridgeNonce=' + nonce
         : '?session=' + encodeURIComponent(token) + '&bridgeNonce=' + nonce);
     })();
   </script>
